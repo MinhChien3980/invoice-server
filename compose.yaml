@@ -1,10 +1,20 @@
+version: '3.8'
+
 services:
   mysql:
+    container_name: mysql-1
     image: 'mysql:latest'
+    restart: always
     environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+      MYSQL_DATABASE: invoice_management
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
     ports:
-      - '3306'
+      - '3306:3306'
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
