@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceMapper invoiceMapper;
-    public static final String FILE_DIRECTORY = "src/main/resources/uploads/";
+    public static final String FILE_DIRECTORY = "src/main/resources/static/uploads/";
 
     // Save file to resources/uploads and return the file path
     private String saveFile(MultipartFile file) throws IOException {
@@ -39,10 +39,10 @@ public class InvoiceService {
         }
 
         String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        Path filePath = Paths.get(FILE_DIRECTORY + fileName);
+        Path filePath = Paths.get(FILE_DIRECTORY, fileName);
         Files.write(filePath, file.getBytes());
 
-        return "uploads/" + fileName; // Return relative path
+        return "static/uploads/" + fileName; // Return relative path
     }
 
     // Create Invoice
@@ -54,10 +54,16 @@ public class InvoiceService {
         invoice.setAmountOfProduct(invoiceRequest.getAmountOfProduct());
         invoice.setPrice(invoiceRequest.getPrice());
         invoice.setStatusPaid(invoiceRequest.isStatusPaid());
-        invoice.setStatusHasInvoice(invoiceRequest.isStatusHasInvoice());
         invoice.setDateBuy(invoiceRequest.getDateBuy());
         invoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
-        invoice.setPdfOrImgPath(invoiceRequest.getPdfOrImgPath()); // File path
+
+        // Check if file exists to set statusHasInvoice
+        if (invoiceRequest.getPdfOrImgPath() != null && !invoiceRequest.getPdfOrImgPath().isEmpty()) {
+            invoice.setPdfOrImgPath(invoiceRequest.getPdfOrImgPath());
+            invoice.setStatusHasInvoice(true);
+        } else {
+            invoice.setStatusHasInvoice(false);
+        }
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
         return invoiceMapper.toInvoiceResponse(savedInvoice);
@@ -68,19 +74,24 @@ public class InvoiceService {
         Invoice existingInvoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        Invoice updatedInvoice = invoiceMapper.toInvoice(invoiceRequest);
-        updatedInvoice.setId(existingInvoice.getId());
+        existingInvoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
+        existingInvoice.setUserName(invoiceRequest.getUserName());
+        existingInvoice.setDateBuy(invoiceRequest.getDateBuy());
+        existingInvoice.setPrice(invoiceRequest.getPrice());
+        existingInvoice.setAmountOfProduct(invoiceRequest.getAmountOfProduct());
+        existingInvoice.setProductName(invoiceRequest.getProductName());
+        existingInvoice.setStatusPaid(invoiceRequest.isStatusPaid());
+        existingInvoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
 
-        // Save new file if uploaded
         if (invoiceRequest.getFile() != null && !invoiceRequest.getFile().isEmpty()) {
             String filePath = saveFile(invoiceRequest.getFile());
-            updatedInvoice.setPdfOrImgPath(filePath);
-            updatedInvoice.setStatusHasInvoice(true);
+            existingInvoice.setPdfOrImgPath(filePath);
+            existingInvoice.setStatusHasInvoice(true);
         } else {
-            updatedInvoice.setPdfOrImgPath(existingInvoice.getPdfOrImgPath());
+            existingInvoice.setStatusHasInvoice(existingInvoice.getPdfOrImgPath() != null && !existingInvoice.getPdfOrImgPath().isEmpty());
         }
 
-        Invoice savedInvoice = invoiceRepository.save(updatedInvoice);
+        Invoice savedInvoice = invoiceRepository.save(existingInvoice);
         return invoiceMapper.toInvoiceResponse(savedInvoice);
     }
 
@@ -121,11 +132,6 @@ public class InvoiceService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        // Save the file
-        if (file == null || file.isEmpty()) {
-            throw new RuntimeException("No file provided.");
-        }
-
         // Ensure directory exists
         File directory = new File(FILE_DIRECTORY);
         if (!directory.exists()) {
@@ -134,15 +140,16 @@ public class InvoiceService {
 
         // Save file with unique name
         String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        Path filePath = Paths.get(FILE_DIRECTORY + fileName);
+        Path filePath = Paths.get(directory.getAbsolutePath(), fileName);
         Files.write(filePath, file.getBytes());
 
-        // Update invoice with file path
-        invoice.setPdfOrImgPath("uploads/" + fileName);
+        // Store relative file path
+        String relativePath = "uploads/" + fileName;
+        invoice.setPdfOrImgPath(relativePath);
         invoice.setStatusHasInvoice(true);
         invoiceRepository.save(invoice);
 
-        return "uploads/" + fileName;
+        return relativePath;
     }
 
 }

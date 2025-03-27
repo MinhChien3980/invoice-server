@@ -14,27 +14,27 @@ import java.nio.file.Paths;
 
 @RestController
 @RequestMapping("/files")
+@CrossOrigin(origins = "*")
 public class FileController {
 
-    private static final String FILE_DIRECTORY = "src/main/resources/";
+    private static final String FILE_DIRECTORY = "src/main/resources/uploads/";
 
     @GetMapping("/{filename}")
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
         try {
-            Path filePath = Paths.get(FILE_DIRECTORY + filename).normalize();
+            Path filePath = Paths.get(FILE_DIRECTORY).resolve(filename).normalize();
             Resource resource = new UrlResource(filePath.toUri());
 
-            if (resource.exists() || resource.isReadable()) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                        .body(resource);
-            } else {
+            if (!resource.exists()) {
                 return ResponseEntity.notFound().build();
             }
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .body(resource);
         } catch (MalformedURLException e) {
             return ResponseEntity.internalServerError().build();
         }
     }
-
 }

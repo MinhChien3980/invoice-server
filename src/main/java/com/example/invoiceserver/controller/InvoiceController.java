@@ -7,6 +7,7 @@ import com.example.invoiceserver.repo.InvoiceRepository;
 import com.example.invoiceserver.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,14 +32,23 @@ public class InvoiceController {
 
     // Create Invoice
     @PostMapping
-    public ResponseEntity<InvoiceResponse> createInvoice(@RequestBody InvoiceRequest invoiceRequest) throws IOException {
-        return ResponseEntity.ok(invoiceService.createInvoice(invoiceRequest));
+    public ResponseEntity<?> createInvoice(@RequestBody InvoiceRequest invoiceRequest) {
+        try {
+            InvoiceResponse response = invoiceService.createInvoice(invoiceRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error creating invoice: " + e.getMessage());
+        }
     }
 
     // Get Invoice by ID
     @GetMapping("/{id}")
-    public ResponseEntity<InvoiceResponse> getInvoiceById(@PathVariable Long id) {
-        return ResponseEntity.ok(invoiceService.getInvoiceById(id));
+    public ResponseEntity<?> getInvoiceById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(invoiceService.getInvoiceById(id));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invoice not found: " + e.getMessage());
+        }
     }
 
     // Get All Invoices
@@ -48,16 +58,23 @@ public class InvoiceController {
     }
 
     // Update Invoice
-    @PutMapping("/{id}")
-    public ResponseEntity<InvoiceResponse> updateInvoice(@PathVariable Long id, @RequestBody InvoiceRequest invoiceRequest) throws IOException {
-        return ResponseEntity.ok(invoiceService.updateInvoice(id, invoiceRequest));
+    @PutMapping("/update/{id}")
+    public ResponseEntity<InvoiceResponse> updateInvoice(
+            @PathVariable Long id,
+            @ModelAttribute InvoiceRequest invoiceRequest) throws IOException {
+        InvoiceResponse updatedInvoice = invoiceService.updateInvoice(id, invoiceRequest);
+        return ResponseEntity.ok(updatedInvoice);
     }
 
     // Delete Invoice
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteInvoice(@PathVariable Long id) {
-        invoiceService.deleteInvoice(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<String> deleteInvoice(@PathVariable Long id) {
+        if (!invoiceRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("🚨 Invoice not found!");
+        }
+
+        invoiceRepository.deleteById(id);
+        return ResponseEntity.ok("✅ Invoice deleted successfully.");
     }
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
@@ -78,11 +95,11 @@ public class InvoiceController {
             Optional<Invoice> invoiceOpt = invoiceRepository.findByInvoiceNumber(invoiceNumber);
             if (invoiceOpt.isPresent()) {
                 Invoice invoice = invoiceOpt.get();
-                invoice.setPdfOrImgPath("uploads/" + fileName);
+                invoice.setPdfOrImgPath("static/uploads/" + fileName);
                 invoice.setStatusHasInvoice(true);
                 invoiceRepository.save(invoice);
 
-                return ResponseEntity.ok("File uploaded successfully. File Path: " + "uploads/" + fileName);
+                return ResponseEntity.ok("File uploaded successfully. File Path: " + "static/uploads/" + fileName);
             } else {
                 return ResponseEntity.status(404).body("Invoice not found!");
             }

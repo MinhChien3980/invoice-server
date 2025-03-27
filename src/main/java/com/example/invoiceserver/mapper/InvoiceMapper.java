@@ -33,7 +33,7 @@ public class InvoiceMapper {
 
         // Convert stored file path to full URL
         if (invoice.getPdfOrImgPath() != null) {
-            response.setPdfOrImgPath(FILE_BASE_URL + invoice.getPdfOrImgPath().replace("uploads/", ""));
+            response.setPdfOrImgPath(FILE_BASE_URL + invoice.getPdfOrImgPath().replace("static/uploads/", ""));
         }
 
         return response;
