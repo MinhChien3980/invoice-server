@@ -17,9 +17,9 @@ import java.nio.file.Paths;
 @CrossOrigin(origins = "*")
 public class FileController {
 
-    private static final String FILE_DIRECTORY = "src/main/resources/uploads/";
+    private static final String FILE_DIRECTORY = "src/main/resources/static/uploads/";
 
-    @GetMapping("/{filename}")
+    @GetMapping("/{filename:.+}") // Fixes the "Invalid URI" issue
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(FILE_DIRECTORY).resolve(filename).normalize();

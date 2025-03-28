@@ -93,8 +93,10 @@ public class InvoiceController {
                                                     @RequestParam("file") MultipartFile file) {
         try {
             String filePath = invoiceService.saveInvoiceFile(invoiceId, file);
+            System.out.println("✅ File saved at: " + filePath); // Debugging log
             return ResponseEntity.ok("File uploaded successfully. File Path: " + filePath);
         } catch (Exception e) {
+            System.err.println("🚨 File upload failed: " + e.getMessage()); // Debugging log
             return ResponseEntity.internalServerError().body("File upload failed: " + e.getMessage());
         }
     }

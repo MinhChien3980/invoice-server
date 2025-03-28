@@ -120,7 +120,6 @@ public class InvoiceService {
             existingInvoice.setStatusHasInvoice(existingInvoice.getPdfOrImgPath() != null);
         }
 
-        // ✅ Update or add invoice details
         if (invoiceRequest.getInvoiceDetails() != null) {
             Set<Long> incomingDetailIds = invoiceRequest.getInvoiceDetails().stream()
                     .map(InvoiceDetailRequest::getId)
@@ -274,10 +273,12 @@ public class InvoiceService {
         Path filePath = Paths.get(directory.getAbsolutePath(), fileName);
         Files.write(filePath, file.getBytes());
 
-        // Store relative file path
-        String relativePath = "uploads/" + fileName;
+        // ✅ Store the relative file path
+        String relativePath = "static/uploads/" + fileName;
         invoice.setPdfOrImgPath(relativePath);
         invoice.setStatusHasInvoice(true);
+
+        // ✅ Save to database
         invoiceRepository.save(invoice);
 
         return relativePath;
