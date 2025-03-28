@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DetailInvoiceRepository extends JpaRepository<DetailInvoice, Long> {
-//    Optional<DetailInvoice> findByDeInvoiceNumber(String invoiceNumber);
     List<DetailInvoice> findByInvoiceId(Long invoiceId);
     @Modifying
     @Transactional

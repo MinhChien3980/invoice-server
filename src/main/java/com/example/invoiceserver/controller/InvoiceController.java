@@ -60,18 +60,14 @@ public class InvoiceController {
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("invoiceNumber") String invoiceNumber) {
         try {
-            // Ensure directory exists
             File directory = new File(FILE_DIRECTORY);
             if (!directory.exists()) {
                 directory.mkdirs();
             }
-
-            // Save file with a unique name
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
             Path filePath = Paths.get(FILE_DIRECTORY, fileName);
             Files.write(filePath, file.getBytes());
 
-            // Retrieve invoice by number
             Optional<Invoice> invoiceOpt = invoiceRepository.findByInvoiceNumber(invoiceNumber);
             if (invoiceOpt.isPresent()) {
                 Invoice invoice = invoiceOpt.get();

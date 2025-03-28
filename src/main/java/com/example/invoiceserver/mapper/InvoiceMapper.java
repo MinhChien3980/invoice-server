@@ -24,16 +24,12 @@ public class InvoiceMapper {
         response.setUserName(invoice.getUserName());
         response.setCustomerName(invoice.getCustomerName());
         response.setAproved(invoice.isAproved());
-
-        // Kiểm tra approveDate không null trước khi gọi .toString()
         response.setApproveDate(invoice.getApproveDate() != null ? invoice.getApproveDate().toString() : null);
-
         response.setStatusPaid(invoice.isStatusPaid());
         response.setStatusHasInvoice(invoice.isStatusHasInvoice());
         response.setDateBuy(invoice.getDateBuy());
         response.setOutOfDateToPay(invoice.getOutOfDateToPay());
 
-        // Convert stored file path to full URL
         if (invoice.getPdfOrImgPath() != null) {
             response.setPdfOrImgPath(FILE_BASE_URL + invoice.getPdfOrImgPath().replace("static/uploads/", ""));
         }

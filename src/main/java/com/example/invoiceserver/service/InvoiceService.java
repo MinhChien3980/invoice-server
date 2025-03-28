@@ -12,20 +12,15 @@ import com.example.invoiceserver.repo.InvoiceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -89,7 +84,7 @@ public class InvoiceService {
         Invoice existingInvoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        // ✅ Update invoice fields if provided
+        // Update invoice fields if provided
         if (invoiceRequest.getInvoiceNumber() != null) {
             existingInvoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
         }
@@ -111,7 +106,7 @@ public class InvoiceService {
                 ? invoiceRequest.getApproveDate().toString()
                 : null);
 
-        // ✅ Handle file upload
+        // Handle file upload
         if (invoiceRequest.getFile() != null && !invoiceRequest.getFile().isEmpty()) {
             String filePath = saveFile(invoiceRequest.getFile());
             existingInvoice.setPdfOrImgPath(filePath);
@@ -151,10 +146,10 @@ public class InvoiceService {
             }
         }
 
-        // ✅ Save the invoice with updated details
+        // Save the invoice with updated details
         Invoice savedInvoice = invoiceRepository.save(existingInvoice);
 
-        // ✅ Convert to response including details
+        // Convert to response including details
         return InvoiceResponse.builder()
                 .id(savedInvoice.getId())
                 .invoiceNumber(savedInvoice.getInvoiceNumber())
@@ -240,10 +235,8 @@ public class InvoiceService {
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("🚨 Invoice not found!"));
 
-        // First, delete all related invoice details
         detailInvoiceRepository.deleteAll(invoice.getInvoiceDetails());
 
-        // Then delete the invoice
         invoiceRepository.delete(invoice);
     }
 
@@ -262,23 +255,19 @@ public class InvoiceService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        // Ensure directory exists
         File directory = new File(FILE_DIRECTORY);
         if (!directory.exists()) {
             directory.mkdirs();
         }
 
-        // Save file with unique name
         String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
         Path filePath = Paths.get(directory.getAbsolutePath(), fileName);
         Files.write(filePath, file.getBytes());
 
-        // ✅ Store the relative file path
         String relativePath = "static/uploads/" + fileName;
         invoice.setPdfOrImgPath(relativePath);
         invoice.setStatusHasInvoice(true);
 
-        // ✅ Save to database
         invoiceRepository.save(invoice);
 
         return relativePath;

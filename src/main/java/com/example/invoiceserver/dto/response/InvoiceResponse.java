@@ -25,7 +25,5 @@ public class InvoiceResponse {
     private String dateBuy;
     private String outOfDateToPay;
     private String pdfOrImgPath;
-
-    // New Field: Invoice Details
     private List<InvoiceDetailResponse> invoiceDetails;
 }
