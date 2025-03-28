@@ -13,7 +13,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class InvoiceDetailResponse {
     private Long id;
-    private Long invoiceId;
     private String productName;
     private int quantity;
     private double price;

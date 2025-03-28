@@ -13,9 +13,11 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class InvoiceDetailRequest {
-    private Long invoiceId;
+    private Long id;
     private String productName;
     private int quantity;
     private double price;
+    private int amountOfProduct;
+
 }
 

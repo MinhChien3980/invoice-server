@@ -1,14 +1,21 @@
 package com.example.invoiceserver.service;
 
+import com.example.invoiceserver.dto.request.InvoiceDetailRequest;
 import com.example.invoiceserver.dto.request.InvoiceRequest;
+import com.example.invoiceserver.dto.response.InvoiceDetailResponse;
 import com.example.invoiceserver.dto.response.InvoiceResponse;
+import com.example.invoiceserver.entity.DetailInvoice;
 import com.example.invoiceserver.entity.Invoice;
 import com.example.invoiceserver.mapper.InvoiceMapper;
+import com.example.invoiceserver.repo.DetailInvoiceRepository;
 import com.example.invoiceserver.repo.InvoiceRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,15 +35,14 @@ import java.util.stream.Collectors;
 public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceMapper invoiceMapper;
+    private final DetailInvoiceRepository detailInvoiceRepository;
     public static final String FILE_DIRECTORY = "src/main/resources/static/uploads/";
 
     // Save file to resources/uploads and return the file path
     private String saveFile(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
-            return null; // No file uploaded
+            return null;
         }
-
-        // Ensure directory exists
         File directory = new File(FILE_DIRECTORY);
         if (!directory.exists()) {
             directory.mkdirs();
@@ -43,7 +52,7 @@ public class InvoiceService {
         Path filePath = Paths.get(FILE_DIRECTORY, fileName);
         Files.write(filePath, file.getBytes());
 
-        return "static/uploads/" + fileName; // Return relative path
+        return "static/uploads/" + fileName;
     }
 
     // Create Invoice
@@ -75,18 +84,19 @@ public class InvoiceService {
     }
 
     // Update Invoice
+    @Transactional
     public InvoiceResponse updateInvoice(Long id, InvoiceRequest invoiceRequest) throws IOException {
         Invoice existingInvoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
-        System.out.println("hhhh"+invoiceRequest.toString());
-        // Chỉ cập nhật các giá trị nếu chúng được gửi trong request
-        if (invoiceRequest.getInvoiceNumber() != null && !invoiceRequest.getInvoiceNumber().isEmpty()) {
+
+        // ✅ Update invoice fields if provided
+        if (invoiceRequest.getInvoiceNumber() != null) {
             existingInvoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
         }
-        if (invoiceRequest.getUserName() != null && !invoiceRequest.getUserName().isEmpty()) {
+        if (invoiceRequest.getUserName() != null) {
             existingInvoice.setUserName(invoiceRequest.getUserName());
         }
-        if (invoiceRequest.getCustomerName() != null && !invoiceRequest.getCustomerName().isEmpty()) {
+        if (invoiceRequest.getCustomerName() != null) {
             existingInvoice.setCustomerName(invoiceRequest.getCustomerName());
         }
         if (invoiceRequest.getDateBuy() != null) {
@@ -95,52 +105,147 @@ public class InvoiceService {
         if (invoiceRequest.getOutOfDateToPay() != null) {
             existingInvoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
         }
-        if (invoiceRequest.isStatusPaid() != existingInvoice.isStatusPaid()) {
-            existingInvoice.setStatusPaid(invoiceRequest.isStatusPaid());
-        }
-        if (invoiceRequest.isAproved() != existingInvoice.isAproved()) {
-            existingInvoice.setAproved(invoiceRequest.isAproved());
-        }
+        existingInvoice.setStatusPaid(invoiceRequest.isStatusPaid());
+        existingInvoice.setAproved(invoiceRequest.isAproved());
+        existingInvoice.setApproveDate(invoiceRequest.getApproveDate() != null
+                ? invoiceRequest.getApproveDate().toString()
+                : null);
 
-        // Cập nhật ngày approve nếu được gửi từ request
-        if (invoiceRequest.getApproveDate() != null) {
-            existingInvoice.setApproveDate(invoiceRequest.getApproveDate().toString());
-        }
-
-        // Nếu có file mới được tải lên, cập nhật file và set `statusHasInvoice = true`
+        // ✅ Handle file upload
         if (invoiceRequest.getFile() != null && !invoiceRequest.getFile().isEmpty()) {
             String filePath = saveFile(invoiceRequest.getFile());
             existingInvoice.setPdfOrImgPath(filePath);
             existingInvoice.setStatusHasInvoice(true);
         } else {
-            existingInvoice.setStatusHasInvoice(existingInvoice.getPdfOrImgPath() != null && !existingInvoice.getPdfOrImgPath().isEmpty());
+            existingInvoice.setStatusHasInvoice(existingInvoice.getPdfOrImgPath() != null);
         }
 
-        // Lưu cập nhật vào cơ sở dữ liệu
+        // ✅ Update or add invoice details
+        if (invoiceRequest.getInvoiceDetails() != null) {
+            Set<Long> incomingDetailIds = invoiceRequest.getInvoiceDetails().stream()
+                    .map(InvoiceDetailRequest::getId)
+                    .collect(Collectors.toSet());
+
+            // Remove any details that are not in the request
+            existingInvoice.getInvoiceDetails().removeIf(detail ->
+                    !incomingDetailIds.contains(detail.getId()));
+
+            // Process incoming details
+            for (InvoiceDetailRequest detailRequest : invoiceRequest.getInvoiceDetails()) {
+                DetailInvoice detail;
+                if (detailRequest.getId() != null) {
+                    // Find existing detail
+                    detail = existingInvoice.getInvoiceDetails().stream()
+                            .filter(d -> d.getId().equals(detailRequest.getId()))
+                            .findFirst()
+                            .orElse(new DetailInvoice());
+                } else {
+                    // Create new detail
+                    detail = new DetailInvoice();
+                    detail.setInvoice(existingInvoice);
+                    existingInvoice.getInvoiceDetails().add(detail);
+                }
+
+                detail.setProductName(detailRequest.getProductName());
+                detail.setAmountOfProduct(detailRequest.getAmountOfProduct());
+                detail.setPrice(detailRequest.getPrice());
+            }
+        }
+
+        // ✅ Save the invoice with updated details
         Invoice savedInvoice = invoiceRepository.save(existingInvoice);
-        return invoiceMapper.toInvoiceResponse(savedInvoice);
+
+        // ✅ Convert to response including details
+        return InvoiceResponse.builder()
+                .id(savedInvoice.getId())
+                .invoiceNumber(savedInvoice.getInvoiceNumber())
+                .userName(savedInvoice.getUserName())
+                .aproved(savedInvoice.isAproved())
+                .customerName(savedInvoice.getCustomerName())
+                .approveDate(savedInvoice.getApproveDate() != null ? savedInvoice.getApproveDate().toString() : null)
+                .statusPaid(savedInvoice.isStatusPaid())
+                .statusHasInvoice(savedInvoice.isStatusHasInvoice())
+                .dateBuy(savedInvoice.getDateBuy())
+                .outOfDateToPay(savedInvoice.getOutOfDateToPay())
+                .pdfOrImgPath(savedInvoice.getPdfOrImgPath())
+                .invoiceDetails(savedInvoice.getInvoiceDetails().stream()
+                        .map(detail -> InvoiceDetailResponse.builder()
+                                .id(detail.getId())
+                                .productName(detail.getProductName())
+                                .quantity(detail.getAmountOfProduct())
+                                .price(detail.getPrice())
+                                .build()
+                        ).collect(Collectors.toList()))
+                .build();
     }
 
     // Get Invoice by ID
     public InvoiceResponse getInvoiceById(Long id) {
         Invoice invoice = invoiceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
-        return invoiceMapper.toInvoiceResponse(invoice);
+                .orElseThrow(() -> new RuntimeException("🚨 Invoice not found!"));
+
+        return InvoiceResponse.builder()
+                .id(invoice.getId())
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .userName(invoice.getUserName())
+                .aproved(invoice.isAproved())
+                .customerName(invoice.getCustomerName())
+                .approveDate(invoice.getApproveDate() != null ? invoice.getApproveDate().toString() : null)
+                .statusPaid(invoice.isStatusPaid())
+                .statusHasInvoice(invoice.isStatusHasInvoice())
+                .dateBuy(invoice.getDateBuy())
+                .outOfDateToPay(invoice.getOutOfDateToPay())
+                .pdfOrImgPath(invoice.getPdfOrImgPath())
+                .invoiceDetails(invoice.getInvoiceDetails().stream()
+                        .map(detail -> InvoiceDetailResponse.builder()
+                                .id(detail.getId())
+                                .productName(detail.getProductName())
+                                .quantity(detail.getAmountOfProduct())
+                                .price(detail.getPrice())
+                                .build()
+                        ).collect(Collectors.toList()))
+                .build();
     }
+
 
     // Get All Invoices
     public List<InvoiceResponse> getAllInvoices() {
         return invoiceRepository.findAll().stream()
-                .map(invoiceMapper::toInvoiceResponse)
-                .collect(Collectors.toList());
+                .map(invoice -> InvoiceResponse.builder()
+                        .id(invoice.getId())
+                        .invoiceNumber(invoice.getInvoiceNumber())
+                        .userName(invoice.getUserName())
+                        .aproved(invoice.isAproved())
+                        .customerName(invoice.getCustomerName())
+                        .approveDate(invoice.getApproveDate() != null ? invoice.getApproveDate().toString() : null)
+                        .statusPaid(invoice.isStatusPaid())
+                        .statusHasInvoice(invoice.isStatusHasInvoice())
+                        .dateBuy(invoice.getDateBuy())
+                        .outOfDateToPay(invoice.getOutOfDateToPay())
+                        .pdfOrImgPath(invoice.getPdfOrImgPath())
+                        .invoiceDetails(invoice.getInvoiceDetails().stream()
+                                .map(detail -> InvoiceDetailResponse.builder()
+                                        .id(detail.getId())
+                                        .productName(detail.getProductName())
+                                        .price(detail.getPrice())
+                                        .build()
+                                ).collect(Collectors.toList()))
+                        .build()
+                ).collect(Collectors.toList());
     }
 
+
     // Delete Invoice
+    @Transactional
     public void deleteInvoice(Long id) {
-        if (!invoiceRepository.existsById(id)) {
-            throw new RuntimeException("Invoice not found");
-        }
-        invoiceRepository.deleteById(id);
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("🚨 Invoice not found!"));
+
+        // First, delete all related invoice details
+        detailInvoiceRepository.deleteAll(invoice.getInvoiceDetails());
+
+        // Then delete the invoice
+        invoiceRepository.delete(invoice);
     }
 
     public boolean isInvoicePaid(Long id) {

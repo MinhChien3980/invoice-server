@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,16 +42,6 @@ public class InvoiceController {
         }
     }
 
-    // Get Invoice by ID
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getInvoiceById(@PathVariable Long id) {
-        try {
-            return ResponseEntity.ok(invoiceService.getInvoiceById(id));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invoice not found: " + e.getMessage());
-        }
-    }
-
     // Get All Invoices
     @GetMapping
     public ResponseEntity<List<InvoiceResponse>> getAllInvoices() {
@@ -64,17 +55,6 @@ public class InvoiceController {
             @RequestBody InvoiceRequest invoiceRequest) throws IOException {
         InvoiceResponse updatedInvoice = invoiceService.updateInvoice(id, invoiceRequest);
         return ResponseEntity.ok(updatedInvoice);
-    }
-
-    // Delete Invoice
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteInvoice(@PathVariable Long id) {
-        if (!invoiceRepository.existsById(id)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("🚨 Invoice not found!");
-        }
-
-        invoiceRepository.deleteById(id);
-        return ResponseEntity.ok("✅ Invoice deleted successfully.");
     }
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
@@ -118,5 +98,26 @@ public class InvoiceController {
             return ResponseEntity.internalServerError().body("File upload failed: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteInvoice(@PathVariable Long id) {
+        try {
+            invoiceService.deleteInvoice(id);
+            return ResponseEntity.ok("✅ Invoice and associated details deleted successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("🚨 Invoice not found: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getInvoiceById(@PathVariable Long id) {
+        try {
+            InvoiceResponse response = invoiceService.getInvoiceById(id);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("🚨 Invoice not found: " + e.getMessage());
+        }
+    }
+
 
 }

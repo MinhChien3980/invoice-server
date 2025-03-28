@@ -5,9 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -18,7 +17,6 @@ public class InvoiceResponse {
     private Long id;
     private String invoiceNumber;
     private String userName;
-
     private boolean aproved;
     private String customerName;
     private String approveDate;
@@ -27,5 +25,7 @@ public class InvoiceResponse {
     private String dateBuy;
     private String outOfDateToPay;
     private String pdfOrImgPath;
-    private MultipartFile file;
+
+    // New Field: Invoice Details
+    private List<InvoiceDetailResponse> invoiceDetails;
 }
