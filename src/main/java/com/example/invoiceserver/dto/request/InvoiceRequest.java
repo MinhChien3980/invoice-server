@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -15,9 +17,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class InvoiceRequest {
     private String invoiceNumber;
     private String userName;
-    private String productName;
-    private int amountOfProduct;
-    private double price;
+    private boolean aproved;
+    private LocalDateTime approveDate;
+    private String customerName;
     private boolean statusPaid;
     private boolean statusHasInvoice;
     private String dateBuy;

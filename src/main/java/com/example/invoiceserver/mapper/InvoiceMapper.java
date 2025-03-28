@@ -13,7 +13,6 @@ public class InvoiceMapper {
         Invoice invoice = new Invoice();
         invoice.setUserName(request.getUserName());
         invoice.setDateBuy(request.getDateBuy());
-        invoice.setAmountOfProduct(request.getAmountOfProduct());
         invoice.setStatusPaid(request.isStatusPaid());
         return invoice;
     }
@@ -23,9 +22,12 @@ public class InvoiceMapper {
         response.setId(invoice.getId());
         response.setInvoiceNumber(invoice.getInvoiceNumber());
         response.setUserName(invoice.getUserName());
-        response.setProductName(invoice.getProductName());
-        response.setAmountOfProduct(invoice.getAmountOfProduct());
-        response.setPrice(invoice.getPrice());
+        response.setCustomerName(invoice.getCustomerName());
+        response.setAproved(invoice.isAproved());
+
+        // Kiểm tra approveDate không null trước khi gọi .toString()
+        response.setApproveDate(invoice.getApproveDate() != null ? invoice.getApproveDate().toString() : null);
+
         response.setStatusPaid(invoice.isStatusPaid());
         response.setStatusHasInvoice(invoice.isStatusHasInvoice());
         response.setDateBuy(invoice.getDateBuy());

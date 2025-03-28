@@ -61,7 +61,7 @@ public class InvoiceController {
     @PutMapping("/update/{id}")
     public ResponseEntity<InvoiceResponse> updateInvoice(
             @PathVariable Long id,
-            @ModelAttribute InvoiceRequest invoiceRequest) throws IOException {
+            @RequestBody InvoiceRequest invoiceRequest) throws IOException {
         InvoiceResponse updatedInvoice = invoiceService.updateInvoice(id, invoiceRequest);
         return ResponseEntity.ok(updatedInvoice);
     }

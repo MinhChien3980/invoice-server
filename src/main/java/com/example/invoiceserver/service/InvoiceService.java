@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,13 +51,17 @@ public class InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
         invoice.setUserName(invoiceRequest.getUserName());
-        invoice.setProductName(invoiceRequest.getProductName());
-        invoice.setAmountOfProduct(invoiceRequest.getAmountOfProduct());
-        invoice.setPrice(invoiceRequest.getPrice());
+//        invoice.setProductName(invoiceRequest.getProductName());
+
+        invoice.setCustomerName(invoiceRequest.getCustomerName());
+        //không cần set approve giai đoạn này
+
+//        invoice.setAmountOfProduct(invoiceRequest.getAmountOfProduct());
+//        invoice.setPrice(invoiceRequest.getPrice());
         invoice.setStatusPaid(invoiceRequest.isStatusPaid());
         invoice.setDateBuy(invoiceRequest.getDateBuy());
         invoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
-
+        invoice.setApproveDate("");
         // Check if file exists to set statusHasInvoice
         if (invoiceRequest.getPdfOrImgPath() != null && !invoiceRequest.getPdfOrImgPath().isEmpty()) {
             invoice.setPdfOrImgPath(invoiceRequest.getPdfOrImgPath());
@@ -73,16 +78,36 @@ public class InvoiceService {
     public InvoiceResponse updateInvoice(Long id, InvoiceRequest invoiceRequest) throws IOException {
         Invoice existingInvoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
+        System.out.println("hhhh"+invoiceRequest.toString());
+        // Chỉ cập nhật các giá trị nếu chúng được gửi trong request
+        if (invoiceRequest.getInvoiceNumber() != null && !invoiceRequest.getInvoiceNumber().isEmpty()) {
+            existingInvoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
+        }
+        if (invoiceRequest.getUserName() != null && !invoiceRequest.getUserName().isEmpty()) {
+            existingInvoice.setUserName(invoiceRequest.getUserName());
+        }
+        if (invoiceRequest.getCustomerName() != null && !invoiceRequest.getCustomerName().isEmpty()) {
+            existingInvoice.setCustomerName(invoiceRequest.getCustomerName());
+        }
+        if (invoiceRequest.getDateBuy() != null) {
+            existingInvoice.setDateBuy(invoiceRequest.getDateBuy());
+        }
+        if (invoiceRequest.getOutOfDateToPay() != null) {
+            existingInvoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
+        }
+        if (invoiceRequest.isStatusPaid() != existingInvoice.isStatusPaid()) {
+            existingInvoice.setStatusPaid(invoiceRequest.isStatusPaid());
+        }
+        if (invoiceRequest.isAproved() != existingInvoice.isAproved()) {
+            existingInvoice.setAproved(invoiceRequest.isAproved());
+        }
 
-        existingInvoice.setInvoiceNumber(invoiceRequest.getInvoiceNumber());
-        existingInvoice.setUserName(invoiceRequest.getUserName());
-        existingInvoice.setDateBuy(invoiceRequest.getDateBuy());
-        existingInvoice.setPrice(invoiceRequest.getPrice());
-        existingInvoice.setAmountOfProduct(invoiceRequest.getAmountOfProduct());
-        existingInvoice.setProductName(invoiceRequest.getProductName());
-        existingInvoice.setStatusPaid(invoiceRequest.isStatusPaid());
-        existingInvoice.setOutOfDateToPay(invoiceRequest.getOutOfDateToPay());
+        // Cập nhật ngày approve nếu được gửi từ request
+        if (invoiceRequest.getApproveDate() != null) {
+            existingInvoice.setApproveDate(invoiceRequest.getApproveDate().toString());
+        }
 
+        // Nếu có file mới được tải lên, cập nhật file và set `statusHasInvoice = true`
         if (invoiceRequest.getFile() != null && !invoiceRequest.getFile().isEmpty()) {
             String filePath = saveFile(invoiceRequest.getFile());
             existingInvoice.setPdfOrImgPath(filePath);
@@ -91,6 +116,7 @@ public class InvoiceService {
             existingInvoice.setStatusHasInvoice(existingInvoice.getPdfOrImgPath() != null && !existingInvoice.getPdfOrImgPath().isEmpty());
         }
 
+        // Lưu cập nhật vào cơ sở dữ liệu
         Invoice savedInvoice = invoiceRepository.save(existingInvoice);
         return invoiceMapper.toInvoiceResponse(savedInvoice);
     }
