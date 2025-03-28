@@ -7,7 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,7 +18,7 @@ public class FileController {
 
     private static final String FILE_DIRECTORY = "src/main/resources/static/uploads/";
 
-    @GetMapping("/{filename:.+}") // Fixes the "Invalid URI" issue
+    @GetMapping("/{filename:.+}")
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(FILE_DIRECTORY).resolve(filename).normalize();
@@ -29,9 +28,10 @@ public class FileController {
                 return ResponseEntity.notFound().build();
             }
 
+            String contentType = filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg";
+
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
                     .body(resource);
         } catch (MalformedURLException e) {
             return ResponseEntity.internalServerError().build();
