@@ -31,6 +31,7 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceMapper invoiceMapper;
     private final DetailInvoiceRepository detailInvoiceRepository;
+    private final NotificationService notificationService;
     public static final String FILE_DIRECTORY = "src/main/resources/static/uploads/";
 
     // Save file to resources/uploads and return the file path
@@ -75,6 +76,14 @@ public class InvoiceService {
         }
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
+        
+        // Send notification for invoice creation
+        notificationService.createAndSendInvoiceStatusNotification(
+            savedInvoice, 
+            "Hóa đơn mới đã được tạo: " + savedInvoice.getInvoiceNumber(), 
+            "INVOICE_CREATED"
+        );
+        
         return invoiceMapper.toInvoiceResponse(savedInvoice);
     }
 
@@ -83,6 +92,10 @@ public class InvoiceService {
     public InvoiceResponse updateInvoice(Long id, InvoiceRequest invoiceRequest) throws IOException {
         Invoice existingInvoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
+
+        // Lưu trạng thái cũ để so sánh sau này
+        boolean oldApprovalStatus = existingInvoice.isAproved();
+        boolean oldPaymentStatus = existingInvoice.isStatusPaid();
 
         // Update invoice fields if provided
         if (invoiceRequest.getInvoiceNumber() != null) {
@@ -148,6 +161,42 @@ public class InvoiceService {
 
         // Save the invoice with updated details
         Invoice savedInvoice = invoiceRepository.save(existingInvoice);
+        
+        // Gửi thông báo dựa trên các thay đổi trạng thái
+        
+        // Nếu trạng thái phê duyệt thay đổi
+        if (oldApprovalStatus != savedInvoice.isAproved()) {
+            String approvalMessage = savedInvoice.isAproved() 
+                ? "Hóa đơn " + savedInvoice.getInvoiceNumber() + " đã được phê duyệt"
+                : "Hóa đơn " + savedInvoice.getInvoiceNumber() + " đã bị từ chối phê duyệt";
+                
+            notificationService.createAndSendInvoiceStatusNotification(
+                savedInvoice, 
+                approvalMessage, 
+                "APPROVAL_STATUS_CHANGED"
+            );
+        }
+        
+        // Nếu trạng thái thanh toán thay đổi
+        if (oldPaymentStatus != savedInvoice.isStatusPaid()) {
+            String paymentMessage = "Trạng thái thanh toán của hóa đơn " + savedInvoice.getInvoiceNumber() + 
+                " đã thay đổi thành " + (savedInvoice.isStatusPaid() ? "Đã thanh toán" : "Chưa thanh toán");
+                
+            notificationService.createAndSendInvoiceStatusNotification(
+                savedInvoice, 
+                paymentMessage, 
+                "PAYMENT_STATUS_CHANGED"
+            );
+        }
+        
+        // Nếu không có thay đổi trạng thái nào, gửi thông báo cập nhật chung
+        if (oldApprovalStatus == savedInvoice.isAproved() && oldPaymentStatus == savedInvoice.isStatusPaid()) {
+            notificationService.createAndSendInvoiceStatusNotification(
+                savedInvoice, 
+                "Hóa đơn " + savedInvoice.getInvoiceNumber() + " đã được cập nhật", 
+                "INVOICE_UPDATED"
+            );
+        }
 
         // Convert to response including details
         return InvoiceResponse.builder()

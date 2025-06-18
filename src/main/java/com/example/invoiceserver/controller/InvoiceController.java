@@ -5,6 +5,7 @@ import com.example.invoiceserver.dto.response.InvoiceResponse;
 import com.example.invoiceserver.entity.Invoice;
 import com.example.invoiceserver.repo.InvoiceRepository;
 import com.example.invoiceserver.service.InvoiceService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
@@ -31,8 +32,9 @@ public class InvoiceController {
     InvoiceRepository invoiceRepository;
     private static final String FILE_DIRECTORY = "src/main/resources/uploads/";
 
-    // Create Invoice
+    // Create Invoice - Requires ADMIN or USER role
     @PostMapping
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> createInvoice(@RequestBody InvoiceRequest invoiceRequest) {
         try {
             InvoiceResponse response = invoiceService.createInvoice(invoiceRequest);
@@ -42,21 +44,25 @@ public class InvoiceController {
         }
     }
 
-    // Get All Invoices
+    // Get All Invoices - Available to all authenticated users
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InvoiceResponse>> getAllInvoices() {
         return ResponseEntity.ok(invoiceService.getAllInvoices());
     }
 
-    // Update Invoice
+    // Update Invoice - Only ADMIN can update
     @PutMapping("/update/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<InvoiceResponse> updateInvoice(
             @PathVariable Long id,
             @RequestBody InvoiceRequest invoiceRequest) throws IOException {
         InvoiceResponse updatedInvoice = invoiceService.updateInvoice(id, invoiceRequest);
         return ResponseEntity.ok(updatedInvoice);
     }
+    // Upload file for invoice - Available to both roles
     @PostMapping("/upload")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("invoiceNumber") String invoiceNumber) {
         try {
@@ -85,6 +91,7 @@ public class InvoiceController {
         }
     }
     @PostMapping("/{invoiceId}/upload")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<String> uploadInvoiceFile(@PathVariable Long invoiceId,
                                                     @RequestParam("file") MultipartFile file) {
         try {
@@ -98,6 +105,7 @@ public class InvoiceController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<String> deleteInvoice(@PathVariable Long id) {
         try {
             invoiceService.deleteInvoice(id);
@@ -108,6 +116,7 @@ public class InvoiceController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getInvoiceById(@PathVariable Long id) {
         try {
             InvoiceResponse response = invoiceService.getInvoiceById(id);
